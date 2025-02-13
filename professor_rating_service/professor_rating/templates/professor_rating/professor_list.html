@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Professor List</title>
+</head>
+<body>
+    <h1>List of Professors</h1>
+
+    <!-- Logout Button -->
+    <form method="POST" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit">Logout</button>
+    </form>
+
+    <ul>
+        {% for professor in professors %}
+            <li>{{ professor.name }} - {{ professor.department }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
