@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Professor List</title>
 </head>
 <body>
-    <h1>List of Professors</h1>
+    <h1>Professor List</h1>
 
     <!-- Logout Button -->
     <form method="POST" action="{% url 'logout' %}">
@@ -12,10 +14,39 @@
         <button type="submit">Logout</button>
     </form>
 
-    <ul>
-        {% for professor in professors %}
-            <li>{{ professor.name }} - {{ professor.department }}</li>
-        {% endfor %}
-    </ul>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Professor ID</th>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Module Code</th>
+                <th>Module Name</th>
+                <th>Module Avg Rating</th>
+                <th>Professor Avg Rating</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for professor in professors %}
+                {% for module in professor.modules.all %}  <!-- Iterating through each module a professor teaches -->
+                    <tr>
+                        <td>{{ professor.id }}</td>
+                        <td>{{ professor.name }}</td>
+                        <td>{{ professor.department }}</td>
+                        <td>{{ module.module_code }}</td>
+                        <td>{{ module.name }}</td>
+                        <td>{{ module.average_rating|floatformat:2 }}</td>  <!-- Display module-specific rating -->
+                        {% if forloop.first %}  <!-- Only display the professor’s average rating once per professor -->
+                            <td rowspan="{{ professor.modules.count }}">{{ professor.get_average_rating|floatformat:2 }}</td>
+                        {% endif %}
+                        <td>
+                            <a href="{% url 'rate_professor' professor.id module.module_code %}">Rate Professor</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
 </body>
 </html>

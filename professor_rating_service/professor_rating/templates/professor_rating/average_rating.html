@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Average Rating</title>
+</head>
+<body>
+    <h1>Average Rating</h1>
+
+    {% if average_rating %}
+        <p><strong>Professor ID:</strong> {{ professor_id }}</p>
+        <p><strong>Module:</strong> {{ module_code }}</p>
+        <p><strong>Average Rating:</strong> {{ average_rating }}/5</p>
+    {% else %}
+        <p>No ratings found for this professor in this module.</p>
+    {% endif %}
+
+    <a href="{% url 'list_modules' %}">Back to Professor List</a>
+</body>
+</html>

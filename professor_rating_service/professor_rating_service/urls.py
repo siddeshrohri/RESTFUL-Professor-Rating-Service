@@ -25,11 +25,3 @@ urlpatterns = [
     path('', views.home, name='home'),  # Home page
     path('professor_rating/', include('professor_rating.urls')),  # Include professor rating app URLs
 ]
-
-
-
-
-
-
-
-

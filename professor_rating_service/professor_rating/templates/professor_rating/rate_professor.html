@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate {{ professor.name }}</title>
+</head>
+<body>
+    <h2>Rate {{ professor.name }}</h2>
+    <p>Department: {{ professor.department }}</p>
+    <p>Module Code: {{ module.module_code }}</p> <!-- Access module_code properly -->
+    <!-- <p>Current Average Rating: {{ professor.average_rating }}</p> -->
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Submit Rating</button>
+    </form>
+
+    <a href="{% url 'professor_list' %}">Back to Professor List</a>
+</body>
+</html>
