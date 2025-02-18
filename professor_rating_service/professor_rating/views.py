@@ -1,62 +1,117 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import logout
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from .models import Rating, Professor, Module
 from .forms import RatingForm
 import json
 from django.views.decorators.csrf import csrf_exempt
 
-
-# 🎯 List all professors and modules (Updated to work with models)
 @login_required
 def professor_list(request):
     professors = Professor.objects.all()  # Get professors from the database
     modules = Module.objects.all()  # Get all modules
 
-    # Calculate average rating for each professor dynamically
+    # Prepare JSON data for professors
+    professor_list_data = []
     for professor in professors:
-        ratings = Rating.objects.filter(professor=professor)  # Get all ratings for the professor
+        ratings = Rating.objects.filter(professor=professor)
         if ratings:
-            avg_rating = sum(rating.score for rating in ratings) / len(ratings)  # Calculate average
-            professor.average_rating = avg_rating  # Set the professor's average rating
+            avg_rating = sum(r.score for r in ratings) / len(ratings)
         else:
-            professor.average_rating = 0  # Set to 0 if no ratings exist
+            avg_rating = 0
+        professor_list_data.append({
+            'id': professor.id,
+            'name': professor.name,
+            'department': professor.department,
+            'average_rating': avg_rating,
+        })
 
-    return render(request, 'professor_rating/professor_list.html', {'professors': professors, 'modules': modules})
+    # Prepare JSON data for modules
+    modules_list_data = []
+    for module in modules:
+        modules_list_data.append({
+            'module_code': module.module_code,
+            'name': module.name,
+            'year': module.year,
+            'semester': module.semester,
+            'average_rating': module.average_rating,
+        })
+
+    return JsonResponse({'professors': professor_list_data, 'modules': modules_list_data})
 
 
-# 🎯 Rate a professor for a module (Updated to use the existing form and model)
+@csrf_exempt
 @login_required
 def rate_professor(request, professor_id, module_code):
     professor = get_object_or_404(Professor, id=professor_id)
     module = get_object_or_404(Module, module_code=module_code)
 
-    # Create or fetch the Rating object, ensuring it’s specific to the professor and module
-    rating, created = Rating.objects.get_or_create(professor=professor, user=request.user, module=module, defaults={'score': 0})
+    # Get or create the Rating object for this professor-user-module combination
+    rating, created = Rating.objects.get_or_create(
+        professor=professor,
+        user=request.user,
+        module=module,
+        defaults={'score': 0}
+    )
 
     if request.method == "POST":
-        form = RatingForm(request.POST, instance=rating)
-        if form.is_valid():
-            form.save()  # Save rating for this specific professor-module pair
-            return redirect('professor_list')  # Redirect to the professor list after submission
+        # Try to get the rating from a JSON payload first, fallback to POST data
+        try:
+            data = json.loads(request.body)
+            new_score = data.get('score')
+        except (json.JSONDecodeError, TypeError):
+            new_score = request.POST.get('score')
+
+        if new_score is None:
+            return JsonResponse({'error': 'Rating score not provided'}, status=400)
+        try:
+            new_score = int(new_score)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid rating score'}, status=400)
+
+        if new_score < 1 or new_score > 5:
+            return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
+
+        rating.score = new_score
+        rating.save()
+        return JsonResponse({
+            'message': 'Rating updated successfully',
+            'professor_id': professor.id,
+            'module_code': module.module_code,
+            'score': rating.score
+        })
     else:
-        form = RatingForm(instance=rating)
-
-    return render(request, 'professor_rating/rate_professor.html', {'form': form, 'professor': professor, 'module': module})
-
+        # For GET, return the current rating details
+        return JsonResponse({
+            'professor': {
+                'id': professor.id,
+                'name': professor.name,
+                'department': professor.department
+            },
+            'module': {
+                'module_code': module.module_code,
+                'name': module.name,
+                'year': module.year,
+                'semester': module.semester
+            },
+            'rating': rating.score
+        })
 
 
 @login_required
 def view_ratings(request):
-    ratings = Rating.objects.all().values('professor__name', 'user__username', 'score', 'module__name', 'module__year', 'module__semester', 'created_at')
+    ratings = Rating.objects.all().values(
+        'professor__name', 'user__username', 'score',
+        'module__name', 'module__year', 'module__semester', 'created_at'
+    )
     return JsonResponse({'ratings': list(ratings)})
 
-# 🎯 View average rating for a professor and module
+
 @login_required
 def average_rating(request, professor_id, module_code):
     professor = get_object_or_404(Professor, id=professor_id)
-    module = get_object_or_404(Module, code=module_code)
+    # Ensure we use the correct field name for the module (module_code)
+    module = get_object_or_404(Module, module_code=module_code)
     ratings = Rating.objects.filter(professor=professor, module=module)
 
     if not ratings:
@@ -65,11 +120,11 @@ def average_rating(request, professor_id, module_code):
     avg_rating = sum(rating.score for rating in ratings) / len(ratings)
     return JsonResponse({
         'professor_id': professor.id,
-        'module_code': module.code,
+        'module_code': module.module_code,
         'average_rating': avg_rating
     })
 
-# 🎯 Submit a rating for a professor (API Route)
+
 @csrf_exempt
 @login_required
 def api_rate_professor(request):
@@ -78,27 +133,43 @@ def api_rate_professor(request):
             data = json.loads(request.body)
             professor_id = data['professor_id']
             module_code = data['module_code']
-            rating = data['rating']
+            # Optional: year and semester if needed to identify a specific module instance
+            year = data.get('year')
+            semester = data.get('semester')
+            rating_value = data['rating']
 
-            if rating < 1 or rating > 5:
+            if rating_value < 1 or rating_value > 5:
                 return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
 
             professor = get_object_or_404(Professor, id=professor_id)
-            module = get_object_or_404(Module, code=module_code)
-            rating_obj = Rating.objects.create(
+            if year and semester:
+                module = get_object_or_404(Module, module_code=module_code, year=year, semester=semester)
+            else:
+                module = get_object_or_404(Module, module_code=module_code)
+
+            # Get or create the rating, then update if necessary
+            rating_obj, created = Rating.objects.get_or_create(
                 professor=professor,
                 user=request.user,
                 module=module,
-                score=rating
+                defaults={'score': rating_value}
             )
+            if not created:
+                rating_obj.score = rating_value
+                rating_obj.save()
 
-            return JsonResponse({'message': 'Rating submitted successfully'})
+            return JsonResponse({
+                'message': 'Rating submitted successfully',
+                'professor_id': professor.id,
+                'module_code': module.module_code,
+                'score': rating_obj.score
+            })
 
         except (KeyError, json.JSONDecodeError):
             return JsonResponse({'error': 'Invalid request format'}, status=400)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-# 🎯 Home redirect (Kept as is)
+
 def home(request):
-    return redirect('/accounts/login/')
+    return JsonResponse({'message': 'Please login to access the service', 'redirect': '/accounts/login/'})
