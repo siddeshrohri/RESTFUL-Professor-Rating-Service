@@ -105,29 +105,21 @@ def register(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
-        first_name = request.POST.get('first_name')
-        last_name = request.POST.get('last_name')
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
-
+        
+        # Check if password and confirm_password match
         if password != confirm_password:
             return JsonResponse({'error': 'Passwords do not match!'}, status=400)
-
+        
         if User.objects.filter(username=username).exists():
             return JsonResponse({'error': 'Username already taken!'}, status=400)
-
+        
         if User.objects.filter(email=email).exists():
             return JsonResponse({'error': 'Email is already registered!'}, status=400)
-
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name
-        )
+        
+        user = User.objects.create_user(username=username, email=email, password=password)
         user.save()
-
         login(request, user)  # Automatically log in the user after registration
         return JsonResponse({'message': 'Registration successful', 'redirect': 'professor_list'})
     else:

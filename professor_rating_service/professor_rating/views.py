@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 @login_required
 def professor_list(request):
     professors = Professor.objects.all()  # Get professors from the database
-    modules = Module.objects.all()  # Get all modules
+    modules = Module.objects.all()        # Get all modules
 
     # Prepare JSON data for professors
     professor_list_data = []
@@ -26,15 +26,19 @@ def professor_list(request):
             'average_rating': avg_rating,
         })
 
-    # Prepare JSON data for modules
+    # Prepare JSON data for modules and include professor details.
+    # Since Module doesn't have its own department field, we use professor.department.
     modules_list_data = []
     for module in modules:
         modules_list_data.append({
             'module_code': module.module_code,
-            'name': module.name,
+            # Use the department from the associated professor
+            'department': module.professor.department,
             'year': module.year,
             'semester': module.semester,
             'average_rating': module.average_rating,
+            'professor_id': module.professor.id,
+            'professor_name': module.professor.name,
         })
 
     return JsonResponse({'professors': professor_list_data, 'modules': modules_list_data})
@@ -90,7 +94,8 @@ def rate_professor(request, professor_id, module_code):
             },
             'module': {
                 'module_code': module.module_code,
-                'name': module.name,
+                # Retrieve department from professor since Module doesn't have its own department field
+                'department': module.professor.department,
                 'year': module.year,
                 'semester': module.semester
             },
@@ -102,7 +107,8 @@ def rate_professor(request, professor_id, module_code):
 def view_ratings(request):
     ratings = Rating.objects.all().values(
         'professor__name', 'user__username', 'score',
-        'module__name', 'module__year', 'module__semester', 'created_at'
+        # Use the professor's department for the module
+        'module__professor__department', 'module__year', 'module__semester', 'created_at'
     )
     return JsonResponse({'ratings': list(ratings)})
 
@@ -110,7 +116,6 @@ def view_ratings(request):
 @login_required
 def average_rating(request, professor_id, module_code):
     professor = get_object_or_404(Professor, id=professor_id)
-    # Ensure we use the correct field name for the module (module_code)
     module = get_object_or_404(Module, module_code=module_code)
     ratings = Rating.objects.filter(professor=professor, module=module)
 
@@ -147,7 +152,6 @@ def api_rate_professor(request):
             else:
                 module = get_object_or_404(Module, module_code=module_code)
 
-            # Get or create the rating, then update if necessary
             rating_obj, created = Rating.objects.get_or_create(
                 professor=professor,
                 user=request.user,
