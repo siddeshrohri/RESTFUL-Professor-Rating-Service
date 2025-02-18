@@ -76,7 +76,7 @@ def get_professors_and_modules():
 
 def list_combined():
     """Display a combined table of modules with their associated professor details,
-    showing professor details only once per professor group, and including the professor's overall average.
+    showing professor details only once per professor group.
     Uses the module's 'department' field in place of a module name.
     """
     if not logged_in:
@@ -87,12 +87,11 @@ def list_combined():
         print("No modules found.")
         return
 
-    # Build a mapping for professor information (including overall average)
+    # Build a mapping for professor information
     prof_info = {}
     for prof in professors:
         prof_info[prof.get('id', '')] = {
-            'name': prof.get('name', ''),
-            'average_rating': prof.get('average_rating', 0)
+            'name': prof.get('name', '')
         }
 
     # Group modules by professor_id
@@ -103,9 +102,9 @@ def list_combined():
             grouped[prof_id] = []
         grouped[prof_id].append(mod)
     
-    # Print header (without semester)
-    header = "{:<10} {:<25} {:<15} {:<25} {:<6} {:<15} {:<10}".format(
-        "Prof ID", "Prof Name", "Module Code", "Department", "Year", "Module Avg", "Prof Avg"
+    # Print header (without ratings)
+    header = "{:<10} {:<25} {:<15} {:<25} {:<6}".format(
+        "Prof ID", "Prof Name", "Module Code", "Department", "Year"
     )
     print("\n-- Combined List of Modules & Professors --")
     print(header)
@@ -119,69 +118,105 @@ def list_combined():
             if first:
                 prof_id_disp = mod.get('professor_id', '')
                 prof_name_disp = mod.get('professor_name', '')
-                prof_avg = prof_info.get(prof_id_disp, {}).get('average_rating', 0)
                 first = False
             else:
                 prof_id_disp = ""
                 prof_name_disp = ""
-                prof_avg = ""
             module_code = mod.get('module_code', '')
             dept = mod.get('department', '')
             year = mod.get('year', '')
-            module_avg = mod.get('average_rating', 0)
-            print("{:<10} {:<25} {:<15} {:<25} {:<6} {:<15} {:<10}".format(
+            print("{:<10} {:<25} {:<15} {:<25} {:<6}".format(
                 prof_id_disp,
                 prof_name_disp,
                 module_code,
                 dept,
-                year,
-                module_avg,
-                prof_avg
+                year
             ))
+
 
 def average_rating():
     if not logged_in:
         print("Please log in first.")
         return
+
     professors, modules = get_professors_and_modules()
     if not professors:
         print("No professors available.")
         return
-    # Let user select a professor
-    print("\nSelect a professor:")
-    for idx, prof in enumerate(professors, start=1):
-        print(f"{idx}. {prof['id']} - {prof['name']}")
-    try:
-        prof_choice = int(input("Enter professor option number: "))
-        selected_prof = professors[prof_choice - 1]
-    except (ValueError, IndexError):
-        print("Invalid professor selection.")
-        return
-    professor_id = selected_prof['id']
-    # Filter modules for the chosen professor
-    professor_modules = [m for m in modules if m.get('professor_id') == professor_id]
-    if not professor_modules:
-        print("No modules found for this professor.")
-        return
-    # Let user select one module from the filtered list
-    print("\nSelect a module for the chosen professor:")
-    for idx, mod in enumerate(professor_modules, start=1):
-        print(f"{idx}. {mod['module_code']} - {mod['department']}")
-    try:
-        mod_choice = int(input("Enter module option number: "))
-        selected_mod = professor_modules[mod_choice - 1]
-    except (ValueError, IndexError):
-        print("Invalid module selection.")
-        return
-    module_code = selected_mod['module_code']
-    url = f"{BASE_URL}professor_rating/average/{professor_id}/{module_code}/"
-    response = session.get(url)
-    result = response.json()
-    # Display the result in a formatted manner
-    print("\n-- Average Rating Result --")
-    print(f"Professor ID : {result.get('professor_id', 'N/A')}")
-    print(f"Module Code  : {result.get('module_code', 'N/A')}")
-    print(f"Average Rating: {result.get('average_rating', 'N/A')}")
+
+    # Ask if the user wants overall professor rating or module-specific rating
+    print("\nDo you want the overall professor rating or a specific module rating?")
+    print("1. Overall Professor Rating")
+    print("2. Specific Module Rating")
+    choice = input("Enter option number (1 or 2): ").strip()
+
+    if choice == '1':  # Get overall professor rating
+        print("\nSelect a professor:")
+        for idx, prof in enumerate(professors, start=1):
+            print(f"{idx}. {prof['id']} - {prof['name']}")
+        try:
+            prof_choice = int(input("Enter professor option number: "))
+            selected_prof = professors[prof_choice - 1]
+        except (ValueError, IndexError):
+            print("Invalid professor selection.")
+            return
+
+        professor_id = selected_prof['id']
+        professor_name = selected_prof['name']
+        professor_avg = selected_prof.get('average_rating', 'N/A')
+
+        print("\n-- Overall Professor Rating --")
+        print(f"Professor ID   : {professor_id}")
+        print(f"Professor Name : {professor_name}")
+        print(f"Average Rating : {professor_avg}")
+
+    elif choice == '2':  # Get module-specific rating
+        print("\nSelect a professor:")
+        for idx, prof in enumerate(professors, start=1):
+            print(f"{idx}. {prof['id']} - {prof['name']}")
+        try:
+            prof_choice = int(input("Enter professor option number: "))
+            selected_prof = professors[prof_choice - 1]
+        except (ValueError, IndexError):
+            print("Invalid professor selection.")
+            return
+
+        professor_id = selected_prof['id']
+        professor_modules = [m for m in modules if m.get('professor_id') == professor_id]
+
+        if not professor_modules:
+            print("No modules found for this professor.")
+            return
+
+        # Let user select a module
+        print("\nSelect a module for the chosen professor:")
+        for idx, mod in enumerate(professor_modules, start=1):
+            print(f"{idx}. {mod['module_code']} - {mod['department']}")
+        try:
+            mod_choice = int(input("Enter module option number: "))
+            selected_mod = professor_modules[mod_choice - 1]
+        except (ValueError, IndexError):
+            print("Invalid module selection.")
+            return
+
+        module_code = selected_mod['module_code']
+        url = f"{BASE_URL}professor_rating/average/{professor_id}/{module_code}/"
+        response = session.get(url)
+        try:
+            result = response.json()
+        except requests.exceptions.JSONDecodeError:
+            print("Error: Received unexpected response from the server.")
+            return
+
+        # Display the module rating
+        print("\n-- Module-Specific Rating --")
+        print(f"Professor ID  : {result.get('professor_id', 'N/A')}")
+        print(f"Module Code   : {result.get('module_code', 'N/A')}")
+        print(f"Average Rating: {result.get('average_rating', 'N/A')}")
+
+    else:
+        print("Invalid option. Please enter 1 or 2.")
+
 
 
 def rate_professor():
