@@ -136,21 +136,22 @@ def api_rate_professor(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            professor_id = data['professor_id']
-            module_code = data['module_code']
-            # Optional: year and semester if needed to identify a specific module instance
-            year = data.get('year')
-            semester = data.get('semester')
-            rating_value = data['rating']
+            professor_id = data.get('professor_id')
+            module_code = data.get('module_code')
+            rating_value = data.get('rating')
 
-            if rating_value < 1 or rating_value > 5:
-                return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
+            if not all([professor_id, module_code, rating_value]):
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+            try:
+                rating_value = int(rating_value)
+                if rating_value < 1 or rating_value > 5:
+                    return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
+            except ValueError:
+                return JsonResponse({'error': 'Invalid rating value'}, status=400)
 
             professor = get_object_or_404(Professor, id=professor_id)
-            if year and semester:
-                module = get_object_or_404(Module, module_code=module_code, year=year, semester=semester)
-            else:
-                module = get_object_or_404(Module, module_code=module_code)
+            module = get_object_or_404(Module, module_code=module_code)
 
             rating_obj, created = Rating.objects.get_or_create(
                 professor=professor,
@@ -158,6 +159,7 @@ def api_rate_professor(request):
                 module=module,
                 defaults={'score': rating_value}
             )
+
             if not created:
                 rating_obj.score = rating_value
                 rating_obj.save()
@@ -167,12 +169,15 @@ def api_rate_professor(request):
                 'professor_id': professor.id,
                 'module_code': module.module_code,
                 'score': rating_obj.score
-            })
+            }, status=200)
 
-        except (KeyError, json.JSONDecodeError):
-            return JsonResponse({'error': 'Invalid request format'}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 
 
 def home(request):

@@ -188,10 +188,12 @@ def rate_professor():
     if not logged_in:
         print("Please log in first.")
         return
+
     professors, modules = get_professors_and_modules()
     if not professors:
         print("No professors available.")
         return
+
     # Let user select a professor
     print("\nSelect a professor:")
     for idx, prof in enumerate(professors, start=1):
@@ -202,15 +204,16 @@ def rate_professor():
     except (ValueError, IndexError):
         print("Invalid professor selection.")
         return
+
     professor_id = selected_prof['id']
-    # Filter modules for the selected professor
     professor_modules = [m for m in modules if m.get('professor_id') == professor_id]
     if not professor_modules:
         print("No modules found for this professor.")
         return
+
+    # Select a module
     print("\nSelect a module for the chosen professor:")
     for idx, mod in enumerate(professor_modules, start=1):
-        # Use the 'department' field in place of 'name'
         print(f"{idx}. {mod['module_code']} - {mod['department']}")
     try:
         mod_choice = int(input("Enter module option number: "))
@@ -218,16 +221,28 @@ def rate_professor():
     except (ValueError, IndexError):
         print("Invalid module selection.")
         return
+
     module_code = selected_mod['module_code']
     rating_val = input("Enter rating (1-5): ")
+
     data = {
         'professor_id': professor_id,
         'module_code': module_code,
         'rating': rating_val
     }
+
     response = session.post(BASE_URL + 'professor_rating/api_rate_professor/', json=data)
+
+    # **Check if response is valid JSON**
+    try:
+        resp_json = response.json()
+    except requests.exceptions.JSONDecodeError:
+        print("Error: Server returned invalid response.")
+        return
+
     print("\n-- Rating Response --")
-    print(response.json())
+    print(resp_json)
+
 
 def view_ratings():
     if not logged_in:
@@ -260,8 +275,8 @@ def main():
             print("2. List Combined Modules & Professors")
             print("3. Average Rating")
             print("4. Rate Professor")
-            print("5. View All Ratings")
-            print("6. Exit")
+            # print("5. View All Ratings")
+            print("5. Exit")
             choice = input("Enter option number: ").strip()
             if choice == '1':
                 logout()
@@ -271,9 +286,9 @@ def main():
                 average_rating()
             elif choice == '4':
                 rate_professor()
+            # elif choice == '5':
+            #     view_ratings()
             elif choice == '5':
-                view_ratings()
-            elif choice == '6':
                 break
             else:
                 print("Invalid option.")
