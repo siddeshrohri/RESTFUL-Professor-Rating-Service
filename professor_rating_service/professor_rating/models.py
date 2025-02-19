@@ -17,11 +17,12 @@ class Professor(models.Model):
         return f"{self.name} - Avg Rating: {self.get_average_rating():.2f}"
 
 class Module(models.Model):
-    module_code = models.CharField(max_length=20)  # Renamed to match the view reference
-    name = models.CharField(max_length=255)
-    professor = models.ForeignKey(Professor, on_delete=models.CASCADE, related_name='modules')
+    module_code = models.CharField(max_length=20, unique=True)  # Ensure uniqueness
+    name = models.CharField(max_length=255)  # Store the name of the module
+    professors = models.ManyToManyField(Professor, related_name='modules')  # Many-to-Many relationship
+    department = models.CharField(max_length=255, default="")  # Store the department
     year = models.IntegerField()
-    semester = models.CharField(max_length=10)
+    semester = models.CharField(max_length=10, default="")  # Semester info
     average_rating = models.FloatField(default=0.0)  # Store module-wise average
 
     def update_average_rating(self):
@@ -45,7 +46,6 @@ class Rating(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)  # Save rating first
         self.module.update_average_rating()  # Update module rating
-        # No need to explicitly update the professor, as it is dynamically computed
 
     def __str__(self):
         return f"Rating: {self.score} for {self.professor.name} in {self.module.name} by {self.user.username}"
