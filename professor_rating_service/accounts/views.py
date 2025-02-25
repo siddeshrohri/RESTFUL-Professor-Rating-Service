@@ -79,18 +79,23 @@ def login_view(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
-
         if user is not None:
             login(request, user)
-            # Return different redirect instructions based on user role
             if user.is_superuser:
-                return JsonResponse({'message': 'Login successful', 'redirect': '/admin/'})
-            else:
-                return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})
+                # Return a JSON response including the redirect URL for admin users
+                return JsonResponse({'message': 'Admin login successful', 'redirect': '/admin/'})
+            return JsonResponse({'message': 'Login successful'})
         else:
             return JsonResponse({'error': 'Invalid username or password'}, status=400)
-    else:
+    elif request.method == 'GET':
+        if request.user.is_authenticated:
+            if request.user.is_superuser:
+                return redirect('/admin/')
+            return JsonResponse({'message': 'User already logged in'})
         return JsonResponse({'error': 'POST method required'}, status=405)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 
 @csrf_exempt
 def logout_view(request):

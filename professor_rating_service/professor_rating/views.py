@@ -101,42 +101,42 @@ def rate_professor(request, professor_id, module_code):
 
 @login_required
 def view_ratings(request):
-    ratings = Rating.objects.all().values(
-        'professor__name', 'professor__department', 'user__username', 'score',
-        'module__name', 'module__year', 'module__semester', 'created_at'
-    )
-    return JsonResponse({'ratings': list(ratings)})
+    # Return overall professor ratings, even if no ratings exist.
+    professors = Professor.objects.all()
+    ratings_data = []
+    for professor in professors:
+        ratings_data.append({
+            'professor_id': professor.id,
+            'professor_name': professor.name,
+            'department': professor.department,
+            'average_rating': professor.get_average_rating(),  # This returns 0.0 if no ratings exist
+        })
+    return JsonResponse({'ratings': ratings_data})
+
+
 
 
 @login_required
-def average_rating(request, professor_id=None, module_code=None):
-    if professor_id and not module_code:
-        # Calculate the professor's overall average rating
-        professor = get_object_or_404(Professor, id=professor_id)
-        avg_rating = professor.get_average_rating()
-        return JsonResponse({'professor_id': professor.id, 'average_rating': avg_rating})
-
-    elif professor_id and module_code:
-        # Calculate the average rating for a professor in a specific module
-        professor = get_object_or_404(Professor, id=professor_id)
-        module = get_object_or_404(Module, module_code=module_code)
-
-        # Ensure professor teaches this module
-        if professor not in module.professors.all():
-            return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
-
-        ratings = Rating.objects.filter(professor=professor, module=module)
-        if not ratings:
-            return JsonResponse({'error': 'No ratings found for this professor in the given module'}, status=404)
-
+def average_rating(request, professor_id, module_code):
+    professor = get_object_or_404(Professor, id=professor_id)
+    module = get_object_or_404(Module, module_code=module_code)
+    
+    # Ensure professor teaches this module
+    if professor not in module.professors.all():
+        return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
+    
+    ratings = Rating.objects.filter(professor=professor, module=module)
+    if not ratings:
+        avg_rating = 0.0  # Return 0.0 if no ratings exist
+    else:
         avg_rating = sum(rating.score for rating in ratings) / len(ratings)
-        return JsonResponse({
-            'professor_id': professor.id,
-            'module_code': module.module_code,
-            'average_rating': avg_rating
-        })
+    
+    return JsonResponse({
+        'professor_id': professor.id,
+        'module_code': module.module_code,
+        'average_rating': avg_rating
+    })
 
-    return JsonResponse({'error': 'Invalid parameters'}, status=400)
 
 
 @csrf_exempt
@@ -147,18 +147,28 @@ def api_rate_professor(request):
             data = json.loads(request.body)
             professor_id = data.get('professor_id')
             module_code = data.get('module_code')
+            year = data.get('year')
+            semester = data.get('semester')
             rating_value = data.get('rating')
 
-            if not all([professor_id, module_code, rating_value]):
+            # Check if all required fields are present
+            if not all([professor_id, module_code, year, semester, rating_value]):
                 return JsonResponse({'error': 'Missing required fields'}, status=400)
 
-            rating_value = int(rating_value)
+            # Convert numeric fields
+            try:
+                year = int(year)
+                rating_value = int(rating_value)
+            except ValueError:
+                return JsonResponse({'error': 'Year and rating must be valid integers'}, status=400)
+
             if rating_value < 1 or rating_value > 5:
                 return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
 
+            # Retrieve professor and module using all provided fields
             professor = get_object_or_404(Professor, id=professor_id)
-            module = get_object_or_404(Module, module_code=module_code)
-
+            module = get_object_or_404(Module, module_code=module_code, year=year, semester=str(semester))
+            
             # Ensure professor teaches this module
             if professor not in module.professors.all():
                 return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
@@ -187,6 +197,7 @@ def api_rate_professor(request):
             return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 
 
 def home(request):

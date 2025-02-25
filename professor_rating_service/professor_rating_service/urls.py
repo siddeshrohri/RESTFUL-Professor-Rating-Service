@@ -22,6 +22,6 @@ from professor_rating import views  # Import home view
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),  # Authentication routes
-    path('', views.home, name='home'),  # Home page
+    # path('', views.home, name='home'),  # Home page
     path('professor_rating/', include('professor_rating.urls')),  # Include professor rating app URLs
 ]
