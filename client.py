@@ -332,7 +332,6 @@
 #     main()
 
 import requests
-from tabulate import tabulate
 
 # Default Django server URL
 DEFAULT_BASE_URL = 'http://127.0.0.1:8000/'
@@ -373,6 +372,8 @@ def register():
         print(resp.get('message', 'Registration successful'))
         logged_in = True
 
+import webbrowser
+
 def login():
     """Command: login"""
     global logged_in, BASE_URL
@@ -383,9 +384,9 @@ def login():
 
     url = input(f"Enter service URL (Press Enter to use {DEFAULT_BASE_URL}): ").strip()
     if not url:
-        url = DEFAULT_BASE_URL  # Use default if empty
+        url = DEFAULT_BASE_URL
+    BASE_URL = url if url.endswith('/') else url + '/'
     
-    BASE_URL = url if url.endswith('/') else url + '/'  # Ensure trailing slash
     username = input("Enter username: ")
     password = input("Enter password: ")
     
@@ -404,6 +405,15 @@ def login():
     else:
         print(resp.get('message', 'Login successful'))
         logged_in = True
+        if 'redirect' in resp:
+            # Open the admin panel in a web browser if admin
+            admin_url = BASE_URL + resp['redirect'].lstrip('/')
+            print(f"Admin user detected. Opening admin panel at {admin_url}")
+            try:
+                webbrowser.open(admin_url)
+            except Exception as e:
+                print("Unable to open web browser automatically. Please navigate to:", admin_url)
+
 
 def logout():
     """Command: logout"""
@@ -417,41 +427,38 @@ def logout():
     logged_in = False
 
 def list_modules():
-    """Command: list - Display modules and professors in a tabular format"""
+    """Command: list"""
     if not logged_in:
         print("Please log in first.")
         return
 
     response = session.get(BASE_URL + 'professor_rating/')
-    
-    try:
-        data = response.json()
-    except requests.exceptions.JSONDecodeError:
-        print("Error: Received unexpected response from the server.")
-        return
-
-    professors = data.get('professors', [])
+    data = response.json()
     modules = data.get('modules', [])
 
+    # Display in a formatted table (using simple string formatting)
     if not modules:
         print("No modules found.")
         return
 
-    table_data = []
-    for module in modules:
-        professor_names = ", ".join([prof["name"] for prof in module.get("professors", [])])
-        table_data.append([
-            module["module_code"],
-            module["name"],
-            module["department"],
-            module["year"],
-            module["semester"],  # Added semester field
-            professor_names
-        ])
-
-    headers = ["Module Code", "Module Name", "Department", "Year", "Semester", "Professors"]
+    header = "{:<12} {:<25} {:<20} {:<6} {:<10} {:<40}".format(
+        "Module Code", "Module Name", "Department", "Year", "Semester", "Professors"
+    )
     print("\n-- List of Modules & Professors --")
-    print(tabulate(table_data, headers=headers, tablefmt="grid"))
+    print(header)
+    print("-" * len(header))
+    for module in modules:
+        professors = module.get('professors', [])
+        # Build a list with professor id and name for each professor teaching the module
+        prof_list = ", ".join([f"{p['id']} ({p['name']})" for p in professors])
+        print("{:<12} {:<25} {:<20} {:<6} {:<10} {:<40}".format(
+            module.get('module_code', 'N/A'),
+            module.get('name', 'N/A'),
+            module.get('department', 'N/A'),
+            str(module.get('year', 'N/A')),
+            str(module.get('semester', 'N/A')),
+            prof_list
+        ))
     print("\n")
 
 def view_ratings():
@@ -461,45 +468,44 @@ def view_ratings():
         return
 
     response = session.get(BASE_URL + 'professor_rating/view/')
-    
     try:
-        ratings = response.json().get("ratings", [])
+        data = response.json()
     except requests.exceptions.JSONDecodeError:
         print("Error: Received unexpected response from the server.")
         return
     
-    if not ratings:
+    ratings_list = data.get('ratings', [])
+    if not ratings_list:
         print("\nNo ratings available.")
         return
 
+    header = "{:<15} {:<25} {:<20} {:<6}".format(
+        "Professor ID", "Professor Name", "Department", "Avg Rating"
+    )
     print("\n-- All Ratings --")
-    for rating in ratings:
-        print(f"Professor: {rating['professor__name']} | Module: {rating['module__name']} | Year: {rating['module__year']} | Score: {rating['score']}")
+    print(header)
+    print("-" * len(header))
+    for rating in ratings_list:
+        print("{:<15} {:<25} {:<20} {:<6}".format(
+            rating.get('professor_id', 'N/A'),
+            rating.get('professor_name', 'N/A'),
+            rating.get('department', 'N/A'),
+            rating.get('average_rating', 'N/A')
+        ))
     print("\n")
 
-def average_rating():
+def average_rating(args):
     """Command: average <professor_id> <module_code>"""
     if not logged_in:
         print("Please log in first.")
         return
-    
-    print("\n1. Overall Professor Rating")
-    print("2. Specific Module Rating")
-    choice = input("Enter option number: ").strip()
 
-    if choice == '1':  # Overall professor rating
-        professor_id = input("Enter professor ID: ")
-        url = f"{BASE_URL}professor_rating/average/{professor_id}/"
-    
-    elif choice == '2':  # Specific module rating
-        professor_id = input("Enter professor ID: ")
-        module_code = input("Enter module code: ")
-        url = f"{BASE_URL}professor_rating/average/{professor_id}/{module_code}/"
-    
-    else:
-        print("Invalid option.")
+    if len(args) != 2:
+        print("Usage: average <professor_id> <module_code>")
         return
 
+    professor_id, module_code = args[0], args[1]
+    url = f"{BASE_URL}professor_rating/average/{professor_id}/{module_code}/"
     response = session.get(url)
     
     try:
@@ -508,23 +514,23 @@ def average_rating():
         print("Error: Received unexpected response from the server.")
         return
 
-    # Display the average rating
     print("\n-- Average Rating --")
     print(f"Professor ID  : {result.get('professor_id', 'N/A')}")
     print(f"Module Code   : {result.get('module_code', 'N/A')}")
     print(f"Average Rating: {result.get('average_rating', 'N/A')}\n")
 
-def rate_professor():
+
+def rate_professor(args):
     """Command: rate <professor_id> <module_code> <year> <semester> <rating>"""
     if not logged_in:
         print("Please log in first.")
         return
-    
-    professor_id = input("Enter professor ID: ")
-    module_code = input("Enter module code: ")
-    year = input("Enter teaching year: ")
-    semester = input("Enter semester: ")
-    rating = input("Enter rating (1-5): ")
+
+    if len(args) != 5:
+        print("Usage: rate <professor_id> <module_code> <year> <semester> <rating>")
+        return
+
+    professor_id, module_code, year, semester, rating = args
 
     data = {
         'professor_id': professor_id,
@@ -535,7 +541,7 @@ def rate_professor():
     }
 
     response = session.post(BASE_URL + 'professor_rating/api_rate_professor/', json=data)
-    
+
     try:
         resp_json = response.json()
     except requests.exceptions.JSONDecodeError:
@@ -545,28 +551,35 @@ def rate_professor():
     print("\n-- Rating Response --")
     print(resp_json)
 
+
 def main():
     global logged_in
     print("Welcome to the Professor Rating System")
     
     while True:
-        command = input("\nEnter command: ").strip().lower()
+        command_line = input("\nEnter command: ").strip()
+        if not command_line:
+            continue
 
-        if command == "register":
+        parts = command_line.split()
+        cmd = parts[0].lower()
+        args = parts[1:]
+
+        if cmd == "register":
             register()
-        elif command == "login":
+        elif cmd == "login":
             login()
-        elif command == "logout":
+        elif cmd == "logout":
             logout()
-        elif command == "list":
+        elif cmd == "list":
             list_modules()
-        elif command == "view":
+        elif cmd == "view":
             view_ratings()
-        elif command == "average":
-            average_rating()
-        elif command == "rate":
-            rate_professor()
-        elif command == "exit":
+        elif cmd == "average":
+            average_rating(args)
+        elif cmd == "rate":
+            rate_professor(args)
+        elif cmd == "exit":
             print("Exiting program.")
             break
         else:

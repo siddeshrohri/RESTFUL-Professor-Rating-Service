@@ -62,15 +62,81 @@
 
 #     return render(request, 'accounts/register.html')
 
-# # Redirect Home to Login if Not Authenticated
-# # def home(request):
-# #     if not request.user.is_authenticated:
-# #         return redirect('login')  # Always redirect to login page
-# #     return redirect('professor_list')  # Redirect authenticated users to the professor list
+# Redirect Home to Login if Not Authenticated
+# def home(request):
+#     if not request.user.is_authenticated:
+#         return redirect('login')  # Always redirect to login page
+#     return redirect('professor_list')  # Redirect authenticated users to the professor list
 
-from django.http import JsonResponse
+# from django.http import JsonResponse
+# from django.contrib.auth import login, logout, authenticate
+# from django.contrib.auth.models import User
+# from django.shortcuts import redirect
+# from django.views.decorators.csrf import csrf_exempt
+
+# @csrf_exempt
+# def login_view(request):
+#     if request.method == 'POST':
+#         username = request.POST.get('username')
+#         password = request.POST.get('password')
+#         user = authenticate(request, username=username, password=password)
+#         if user is not None:
+#             login(request, user)
+#             if user.is_superuser:
+#                 # Return a JSON response including the redirect URL for admin users
+#                 return JsonResponse({'message': 'Admin login successful', 'redirect': '/admin/'})
+#             return JsonResponse({'message': 'Login successful'})
+#         else:
+#             return JsonResponse({'error': 'Invalid username or password'}, status=400)
+#     elif request.method == 'GET':
+#         if request.user.is_authenticated:
+#             if request.user.is_superuser:
+#                 return redirect('/admin/')
+#             return JsonResponse({'message': 'User already logged in'})
+#         return JsonResponse({'error': 'POST method required'}, status=405)
+#     else:
+#         return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+# @csrf_exempt
+# def logout_view(request):
+#     if request.method == 'POST':
+#         logout(request)
+#         return JsonResponse({'message': 'Logged out successfully'})
+#     else:
+#         return JsonResponse({'error': 'POST method required'}, status=405)
+
+# @csrf_exempt
+# def register(request):
+#     if request.method == 'POST':
+#         username = request.POST.get('username')
+#         email = request.POST.get('email')
+#         password = request.POST.get('password')
+#         confirm_password = request.POST.get('confirm_password')
+        
+#         # Check if password and confirm_password match
+#         if password != confirm_password:
+#             return JsonResponse({'error': 'Passwords do not match!'}, status=400)
+        
+#         if User.objects.filter(username=username).exists():
+#             return JsonResponse({'error': 'Username already taken!'}, status=400)
+        
+#         if User.objects.filter(email=email).exists():
+#             return JsonResponse({'error': 'Email is already registered!'}, status=400)
+        
+#         user = User.objects.create_user(username=username, email=email, password=password)
+#         user.save()
+#         login(request, user)  # Automatically log in the user after registration
+#         return JsonResponse({'message': 'Registration successful', 'redirect': 'professor_list'})
+#     else:
+#         return JsonResponse({'error': 'POST method required'}, status=405)
+
+
+
+from django.shortcuts import render
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
@@ -79,18 +145,20 @@ def login_view(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
-
         if user is not None:
             login(request, user)
-            # Return different redirect instructions based on user role
+            # If user is admin, include a redirect URL in the JSON response.
             if user.is_superuser:
-                return JsonResponse({'message': 'Login successful', 'redirect': '/admin/'})
-            else:
-                return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})
+                return JsonResponse({
+                    'message': 'Admin login successful',
+                    'redirect': '/admin/login/'
+                })
+            return JsonResponse({'message': 'Login successful'})
         else:
             return JsonResponse({'error': 'Invalid username or password'}, status=400)
     else:
         return JsonResponse({'error': 'POST method required'}, status=405)
+
 
 @csrf_exempt
 def logout_view(request):
@@ -100,27 +168,33 @@ def logout_view(request):
     else:
         return JsonResponse({'error': 'POST method required'}, status=405)
 
+
 @csrf_exempt
 def register(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
+        first_name = request.POST.get('first_name', '')
+        last_name = request.POST.get('last_name', '')
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         
-        # Check if password and confirm_password match
         if password != confirm_password:
             return JsonResponse({'error': 'Passwords do not match!'}, status=400)
-        
         if User.objects.filter(username=username).exists():
             return JsonResponse({'error': 'Username already taken!'}, status=400)
-        
         if User.objects.filter(email=email).exists():
             return JsonResponse({'error': 'Email is already registered!'}, status=400)
         
-        user = User.objects.create_user(username=username, email=email, password=password)
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name
+        )
         user.save()
-        login(request, user)  # Automatically log in the user after registration
-        return JsonResponse({'message': 'Registration successful', 'redirect': 'professor_list'})
+        login(request, user)
+        return JsonResponse({'message': 'Registration successful'})
     else:
         return JsonResponse({'error': 'POST method required'}, status=405)

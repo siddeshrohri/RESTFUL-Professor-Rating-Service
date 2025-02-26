@@ -1,3 +1,6 @@
 from django.contrib import admin
+from professor_rating.models import Professor, Module, Rating
 
-# Register your models here.
+admin.site.register(Professor)
+admin.site.register(Module)
+admin.site.register(Rating)
