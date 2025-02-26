@@ -17,11 +17,13 @@ Including another URLconf
 # professors_rating_service/urls.py
 from django.contrib import admin
 from django.urls import path, include
-from professor_rating import views  # Import home view
+from professor_rating import views
+from accounts import views as account_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),  # Authentication routes
     # path('', views.home, name='home'),  # Home page
     path('professor_rating/', include('professor_rating.urls')),  # Include professor rating app URLs
+    path('', account_views.login_view, name='login'),
 ]

@@ -133,33 +133,48 @@
 
 
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
 
 @csrf_exempt
 def login_view(request):
-    if request.method == 'POST':
+    if request.method == 'GET':
+        # Render the login HTML page for browser access.
+        return render(request, 'accounts/login.html')
+    
+    elif request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
+        
         if user is not None:
             login(request, user)
-            # If user is admin, include a redirect URL in the JSON response.
-            if user.is_superuser:
-                return JsonResponse({
-                    'message': 'Admin login successful',
-                    'redirect': '/admin/login/'
-                })
-            return JsonResponse({'message': 'Login successful'})
+            accepts_html = "text/html" in request.META.get("HTTP_ACCEPT", "")
+            if accepts_html:
+                # Redirect based on user type when HTML is expected.
+                if user.is_superuser:
+                    return redirect('/admin/')
+                else:
+                    return redirect('professor_list')
+            else:
+                # For CLI (JSON) responses, include a redirect key.
+                if user.is_superuser:
+                    return JsonResponse({'message': 'Admin login successful', 'redirect': '/admin/'})
+                else:
+                    return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})
         else:
-            return JsonResponse({'error': 'Invalid username or password'}, status=400)
+            if "text/html" in request.META.get("HTTP_ACCEPT", ""):
+                messages.error(request, 'Invalid username or password')
+                return redirect('login')
+            else:
+                return JsonResponse({'error': 'Invalid username or password'}, status=400)
+    
     else:
-        return JsonResponse({'error': 'POST method required'}, status=405)
-
-
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
 @csrf_exempt
 def logout_view(request):
     if request.method == 'POST':

@@ -147,28 +147,18 @@ def api_rate_professor(request):
             data = json.loads(request.body)
             professor_id = data.get('professor_id')
             module_code = data.get('module_code')
-            year = data.get('year')
-            semester = data.get('semester')
             rating_value = data.get('rating')
 
-            # Check if all required fields are present
-            if not all([professor_id, module_code, year, semester, rating_value]):
+            if not all([professor_id, module_code, rating_value]):
                 return JsonResponse({'error': 'Missing required fields'}, status=400)
 
-            # Convert numeric fields
-            try:
-                year = int(year)
-                rating_value = int(rating_value)
-            except ValueError:
-                return JsonResponse({'error': 'Year and rating must be valid integers'}, status=400)
-
+            rating_value = int(rating_value)
             if rating_value < 1 or rating_value > 5:
                 return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
 
-            # Retrieve professor and module using all provided fields
             professor = get_object_or_404(Professor, id=professor_id)
-            module = get_object_or_404(Module, module_code=module_code, year=year, semester=str(semester))
-            
+            module = get_object_or_404(Module, module_code=module_code)
+
             # Ensure professor teaches this module
             if professor not in module.professors.all():
                 return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
@@ -197,7 +187,6 @@ def api_rate_professor(request):
             return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
-
 
 
 def home(request):
