@@ -22,8 +22,8 @@ from accounts import views as account_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/', include('accounts.urls')),  # Authentication routes
+    path('accounts/', include('accounts.urls')),
     # path('', views.home, name='home'),  # Home page
-    path('professor_rating/', include('professor_rating.urls')),  # Include professor rating app URLs
+    path('professor_rating/', include('professor_rating.urls')), 
     path('', account_views.login_view, name='login'),
 ]

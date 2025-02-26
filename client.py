@@ -357,7 +357,12 @@ def register():
         print("Passwords do not match! Registration aborted.")
         return
 
-    data = {'username': username, 'email': email, 'password': password, 'confirm_password': confirm_password}
+    data = {
+        'username': username,
+        'email': email,
+        'password': password,
+        'confirm_password': confirm_password
+    }
     response = session.post(BASE_URL + 'accounts/register/', data=data)
     
     try:
@@ -372,8 +377,6 @@ def register():
         print(resp.get('message', 'Registration successful'))
         logged_in = True
 
-import webbrowser
-
 def login():
     """Command: login"""
     global logged_in, BASE_URL
@@ -384,9 +387,9 @@ def login():
 
     url = input(f"Enter service URL (Press Enter to use {DEFAULT_BASE_URL}): ").strip()
     if not url:
-        url = DEFAULT_BASE_URL
-    BASE_URL = url if url.endswith('/') else url + '/'
+        url = DEFAULT_BASE_URL  # Use default if empty
     
+    BASE_URL = url if url.endswith('/') else url + '/'
     username = input("Enter username: ")
     password = input("Enter password: ")
     
@@ -405,15 +408,6 @@ def login():
     else:
         print(resp.get('message', 'Login successful'))
         logged_in = True
-        if 'redirect' in resp:
-            # Open the admin panel in a web browser if admin
-            admin_url = BASE_URL + resp['redirect'].lstrip('/')
-            print(f"Admin user detected. Opening admin panel at {admin_url}")
-            try:
-                webbrowser.open(admin_url)
-            except Exception as e:
-                print("Unable to open web browser automatically. Please navigate to:", admin_url)
-
 
 def logout():
     """Command: logout"""
@@ -433,10 +427,14 @@ def list_modules():
         return
 
     response = session.get(BASE_URL + 'professor_rating/')
-    data = response.json()
+    try:
+        data = response.json()
+    except Exception as e:
+        print("Error parsing response:", e)
+        return
+
     modules = data.get('modules', [])
 
-    # Display in a formatted table (using simple string formatting)
     if not modules:
         print("No modules found.")
         return
@@ -449,7 +447,6 @@ def list_modules():
     print("-" * len(header))
     for module in modules:
         professors = module.get('professors', [])
-        # Build a list with professor id and name for each professor teaching the module
         prof_list = ", ".join([f"{p['id']} ({p['name']})" for p in professors])
         print("{:<12} {:<25} {:<20} {:<6} {:<10} {:<40}".format(
             module.get('module_code', 'N/A'),
@@ -495,7 +492,9 @@ def view_ratings():
     print("\n")
 
 def average_rating(args):
-    """Command: average <professor_id> <module_code>"""
+    """Command: average <professor_id> <module_code>
+    Returns the average rating for the given professor in the specified module.
+    """
     if not logged_in:
         print("Please log in first.")
         return
@@ -507,17 +506,31 @@ def average_rating(args):
     professor_id, module_code = args[0], args[1]
     url = f"{BASE_URL}professor_rating/average/{professor_id}/{module_code}/"
     response = session.get(url)
-    
+
+    if response.status_code != 200:
+        print("Not existent")
+        return
+
     try:
         result = response.json()
     except requests.exceptions.JSONDecodeError:
         print("Error: Received unexpected response from the server.")
         return
 
+    avg_rating = result.get('average_rating', None)
+    if avg_rating is not None:
+        try:
+            # Convert to float and round to the nearest integer
+            avg_rating = round(float(avg_rating))
+        except (ValueError, TypeError):
+            avg_rating = "N/A"
+    else:
+        avg_rating = "N/A"
+
     print("\n-- Average Rating --")
     print(f"Professor ID  : {result.get('professor_id', 'N/A')}")
     print(f"Module Code   : {result.get('module_code', 'N/A')}")
-    print(f"Average Rating: {result.get('average_rating', 'N/A')}\n")
+    print(f"Average Rating: {avg_rating}\n")
 
 
 def rate_professor(args):
@@ -525,7 +538,7 @@ def rate_professor(args):
     if not logged_in:
         print("Please log in first.")
         return
-
+    
     if len(args) != 5:
         print("Usage: rate <professor_id> <module_code> <year> <semester> <rating>")
         return
@@ -541,7 +554,7 @@ def rate_professor(args):
     }
 
     response = session.post(BASE_URL + 'professor_rating/api_rate_professor/', json=data)
-
+    
     try:
         resp_json = response.json()
     except requests.exceptions.JSONDecodeError:
@@ -549,7 +562,10 @@ def rate_professor(args):
         return
 
     print("\n-- Rating Response --")
-    print(resp_json)
+    if 'error' in resp_json:
+        print("Error:", resp_json['error'])
+    else:
+        print(f"Rating submitted successfully for professor {resp_json.get('professor_id', 'N/A')} in module {resp_json.get('module_code', 'N/A')} with a score of {resp_json.get('score', 'N/A')}.")
 
 
 def main():
@@ -587,3 +603,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
