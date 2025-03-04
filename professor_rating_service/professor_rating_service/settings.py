@@ -51,7 +51,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    'professor_rating_service.middleware.LoginRequiredMiddleware',
+    # 'professor_rating_service.middleware.LoginRequiredMiddleware',
     # 'django_auto_logout.middleware.auto_logout',
 
 ]
@@ -131,3 +131,4 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = '/admin/login/'  
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# LOGIN_ADMIN = '/admin/login/'

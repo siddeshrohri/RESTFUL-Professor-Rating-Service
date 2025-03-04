@@ -232,10 +232,7 @@ def login_view(request):
     
     if user is not None:
         if user.is_superuser:
-            return JsonResponse(
-                {'error': 'Admin login only allowed through Admin Login page'}, 
-                status=403
-            )
+            return JsonResponse({'error': 'Admin login only allowed via /admin/login/'}, status=403)
         else:
             login(request, user)
             return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})

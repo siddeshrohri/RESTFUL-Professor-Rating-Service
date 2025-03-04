@@ -6,6 +6,7 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 
 
+
 @login_required
 def professor_list(request):
     professors = Professor.objects.all()  # Get all professors
@@ -189,5 +190,5 @@ def api_rate_professor(request):
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
-def home(request):
-    return JsonResponse({'message': 'Please login to access the service', 'redirect': '/accounts/login/'})
+# def home(request):
+#     return JsonResponse({'message': 'Please login to access the service', 'redirect': '/admin/login/'})
