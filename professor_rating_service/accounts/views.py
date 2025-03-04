@@ -133,65 +133,134 @@
 
 
 
-from django.shortcuts import render, redirect
+# from django.shortcuts import render, redirect
+# from django.contrib.auth import login, logout, authenticate
+# from django.contrib.auth.models import User
+# from django.http import JsonResponse
+# from django.views.decorators.csrf import csrf_exempt
+# from django.contrib import messages
+
+# @csrf_exempt
+# def login_view(request):
+#     if request.method == 'GET':
+#         # Render the login HTML page for browser access.
+#         return render(request, 'accounts/login.html')
+    
+#     elif request.method == 'POST':
+#         username = request.POST.get('username')
+#         password = request.POST.get('password')
+#         # print("DEBUG: Received username:", username, "password:", password)
+#         user = authenticate(request, username=username, password=password)
+        
+#         if user is not None:
+#             login(request, user)
+#             accepts_html = "text/html" in request.META.get("HTTP_ACCEPT", "")
+#             if accepts_html:
+#                 # Redirect based on user type when HTML is expected.
+#                 if user.is_superuser:
+#                     return redirect('/admin/')
+#                 else:
+#                     return redirect('professor_list')
+#             else:
+#                 # For CLI (JSON) responses, include a redirect key.
+#                 if user.is_superuser:
+#                     return JsonResponse({'message': 'Admin login successful', 'redirect': '/admin/'})
+#                 else:
+#                     return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})
+#         else:
+#             if "text/html" in request.META.get("HTTP_ACCEPT", ""):
+#                 messages.error(request, 'Invalid username or password')
+#                 return redirect('login')
+#             else:
+#                 return JsonResponse({'error': 'Invalid username or password'}, status=400)
+    
+#     else:
+#         return JsonResponse({'error': 'Invalid request method'}, status=405)
+# @csrf_exempt
+# def logout_view(request):
+#     if request.method == 'POST':
+#         logout(request)
+#         return JsonResponse({'message': 'Logged out successfully'})
+#     else:
+#         return JsonResponse({'error': 'POST method required'}, status=405)
+
+
+# @csrf_exempt
+# def register(request):
+#     if request.method == 'POST':
+#         username = request.POST.get('username')
+#         email = request.POST.get('email')
+#         first_name = request.POST.get('first_name', '')
+#         last_name = request.POST.get('last_name', '')
+#         password = request.POST.get('password')
+#         confirm_password = request.POST.get('confirm_password')
+        
+#         if password != confirm_password:
+#             return JsonResponse({'error': 'Passwords do not match!'}, status=400)
+#         if User.objects.filter(username=username).exists():
+#             return JsonResponse({'error': 'Username already taken!'}, status=400)
+#         if User.objects.filter(email=email).exists():
+#             return JsonResponse({'error': 'Email is already registered!'}, status=400)
+        
+#         user = User.objects.create_user(
+#             username=username,
+#             email=email,
+#             password=password,
+#             first_name=first_name,
+#             last_name=last_name
+#         )
+#         user.save()
+#         login(request, user)
+#         return JsonResponse({'message': 'Registration successful'})
+#     else:
+#         return JsonResponse({'error': 'POST method required'}, status=405)
+
+
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib import messages
 
 @csrf_exempt
 def login_view(request):
-    if request.method == 'GET':
-        # Render the login HTML page for browser access.
-        return render(request, 'accounts/login.html')
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
     
-    elif request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        print("DEBUG: Received username:", username, "password:", password)
-        user = authenticate(request, username=username, password=password)
-        
-        if user is not None:
-            login(request, user)
-            accepts_html = "text/html" in request.META.get("HTTP_ACCEPT", "")
-            if accepts_html:
-                # Redirect based on user type when HTML is expected.
-                if user.is_superuser:
-                    return redirect('/admin/')
-                else:
-                    return redirect('professor_list')
-            else:
-                # For CLI (JSON) responses, include a redirect key.
-                if user.is_superuser:
-                    return JsonResponse({'message': 'Admin login successful', 'redirect': '/admin/'})
-                else:
-                    return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})
+    username = request.POST.get('username')
+    password = request.POST.get('password')
+    user = authenticate(request, username=username, password=password)
+    
+    if user is not None:
+        if user.is_superuser:
+            return JsonResponse(
+                {'error': 'Admin login only allowed through Admin Login page'}, 
+                status=403
+            )
         else:
-            if "text/html" in request.META.get("HTTP_ACCEPT", ""):
-                messages.error(request, 'Invalid username or password')
-                return redirect('login')
-            else:
-                return JsonResponse({'error': 'Invalid username or password'}, status=400)
-    
+            login(request, user)
+            return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})
     else:
-        return JsonResponse({'error': 'Invalid request method'}, status=405)
+        return JsonResponse({'error': 'Invalid username or password'}, status=400)
+
 @csrf_exempt
 def logout_view(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
     if request.method == 'POST':
         logout(request)
         return JsonResponse({'message': 'Logged out successfully'})
     else:
         return JsonResponse({'error': 'POST method required'}, status=405)
 
-
 @csrf_exempt
 def register(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
-        first_name = request.POST.get('first_name', '')
-        last_name = request.POST.get('last_name', '')
+        # first_name = request.POST.get('first_name', '')
+        # last_name = request.POST.get('last_name', '')
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         
@@ -206,8 +275,8 @@ def register(request):
             username=username,
             email=email,
             password=password,
-            first_name=first_name,
-            last_name=last_name
+            # first_name=first_name,
+            # last_name=last_name
         )
         user.save()
         login(request, user)
