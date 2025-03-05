@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
-def LoginAPI(request):
+def login_api(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'POST method required'}, status=405)
     
@@ -26,7 +26,7 @@ def LoginAPI(request):
         return JsonResponse({'error': 'Invalid username or password'}, status=401)
 
 @csrf_exempt
-def LogoutAPI(request):
+def logout_api(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'POST method required'}, status=405)
     
@@ -34,7 +34,7 @@ def LogoutAPI(request):
     return JsonResponse({'message': 'Logged out successfully'})
 
 @csrf_exempt
-def RegisterAPI(request):
+def register_api(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'POST method required'}, status=405)
     

@@ -7,9 +7,7 @@ class Professor(models.Model):
     name = models.CharField(max_length=255)
     department = models.CharField(max_length=255)
 
-    def get_average_rating(self):
-        """Dynamically calculate the professor's average rating based on module ratings,
-        rounded to the nearest integer."""
+    def AverageRatingCalcs(self):
         module_ratings = self.modules.annotate(avg_module_rating=Avg('ratings__score')).values_list('avg_module_rating', flat=True)
         valid_ratings = [rating for rating in module_ratings if rating is not None]
         if valid_ratings:
@@ -17,7 +15,7 @@ class Professor(models.Model):
         return 0
 
     def __str__(self):
-        return f"{self.name} - Avg Rating: {self.get_average_rating()}"
+        return f"{self.name} - Avg Rating: {self.AverageRatingCalcs()}"
 
 class Module(models.Model):
     module_code = models.CharField(max_length=20, unique=True)  # Ensure uniqueness
@@ -29,8 +27,6 @@ class Module(models.Model):
     average_rating = models.FloatField(default=0.0)  # Store module-wise average
 
     def update_average_rating(self):
-        """Calculate and update the module's average rating dynamically,
-        rounded to the nearest integer."""
         avg_rating = self.ratings.aggregate(Avg('score'))['score__avg'] or 0.0
         self.average_rating = round(avg_rating)
         self.save()

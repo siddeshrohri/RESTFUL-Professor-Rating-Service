@@ -129,6 +129,6 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-LOGIN_URL = '/admin/login/'  
+# LOGIN_URL = '/admin/login/'  
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # LOGIN_ADMIN = '/admin/login/'
