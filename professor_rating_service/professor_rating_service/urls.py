@@ -18,8 +18,8 @@ Including another URLconf
 from django.contrib import admin
 from django.shortcuts import redirect
 from django.urls import path, include
-from professor_rating import views
-from accounts import views as account_views
+# from professor_rating import views
+# from accounts import views as account_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),

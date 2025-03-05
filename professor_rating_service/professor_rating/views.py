@@ -9,32 +9,34 @@ from django.views.decorators.csrf import csrf_exempt
 
 @login_required
 def professor_list(request):
-    professors = Professor.objects.all()  # Get all professors
-    modules = Module.objects.all()        # Get all modules
+    """
+    This function returns a list of all the professors and the modules related to the professor
+    in JSON format which can later be accessed by the client side
+    """
+    professors = Professor.objects.all()
+    modules = Module.objects.all()
 
-    # Prepare JSON data for professors
     professor_list_data = []
     for professor in professors:
-        avg_rating = professor.average_rating_prof()
+        avg_rating_profs = professor.average_rating_prof()
         professor_list_data.append({
             'id': professor.id,
             'name': professor.name,
             'department': professor.department,
-            'average_rating': avg_rating,
+            'average_rating': avg_rating_profs,
         })
 
-    # Prepare JSON data for modules and include professors
     modules_list_data = []
     for module in modules:
-        professors = module.professors.all()  # Get all professors for this module
+        professors = module.professors.all()
         modules_list_data.append({
             'module_code': module.module_code,
-            'name': module.name,  # Include module name
+            'name': module.name,
             'department': module.department,
             'year': module.year,
             'semester': module.semester,
             'average_rating': module.average_rating,
-            'professors': [{'id': prof.id, 'name': prof.name} for prof in professors]  # List of professors teaching this module
+            'professors': [{'id': prof.id, 'name': prof.name} for prof in professors]
         })
 
     return JsonResponse({'professors': professor_list_data, 'modules': modules_list_data})
@@ -46,11 +48,9 @@ def rate_professor(request, professor_id, module_code):
     professor = get_object_or_404(Professor, id=professor_id)
     module = get_object_or_404(Module, module_code=module_code)
 
-    # Ensure professor is actually teaching this module
     if professor not in module.professors.all():
         return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
 
-    # Get or create the Rating object for this professor-user-module combination
     rating, created = Rating.objects.get_or_create(
         professor=professor,
         user=request.user,
@@ -102,7 +102,9 @@ def rate_professor(request, professor_id, module_code):
 
 @login_required
 def view_ratings(request):
-    # Return overall professor ratings, even if no ratings exist.
+    """
+    This returns the rating for all the professors
+    """
     professors = Professor.objects.all()
     ratings_data = []
     for professor in professors:
@@ -110,7 +112,7 @@ def view_ratings(request):
             'professor_id': professor.id,
             'professor_name': professor.name,
             'department': professor.department,
-            'average_rating': professor.average_rating_prof(),  # This returns 0.0 if no ratings exist
+            'average_rating': professor.average_rating_prof(),
         })
     return JsonResponse({'ratings': ratings_data})
 
@@ -119,16 +121,18 @@ def view_ratings(request):
 
 @login_required
 def average_rating(request, professor_id, module_code):
+    """
+    This returns the average rating of a module taught by the professor
+    """
     professor = get_object_or_404(Professor, id=professor_id)
     module = get_object_or_404(Module, module_code=module_code)
     
-    # Ensure professor teaches this module
     if professor not in module.professors.all():
         return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
     
     ratings = Rating.objects.filter(professor=professor, module=module)
     if not ratings:
-        avg_rating = 0.0  # Return 0.0 if no ratings exist
+        avg_rating = 0.0
     else:
         avg_rating = sum(rating.score for rating in ratings) / len(ratings)
     
@@ -143,6 +147,9 @@ def average_rating(request, professor_id, module_code):
 @csrf_exempt
 @login_required
 def api_rate_professor(request):
+    """
+    This function is used to rate the professor for a specific module
+    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -160,7 +167,6 @@ def api_rate_professor(request):
             professor = get_object_or_404(Professor, id=professor_id)
             module = get_object_or_404(Module, module_code=module_code)
 
-            # Ensure professor teaches this module
             if professor not in module.professors.all():
                 return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
 
@@ -188,7 +194,3 @@ def api_rate_professor(request):
             return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
-
-
-# def home(request):
-#     return JsonResponse({'message': 'Please login to access the service', 'redirect': '/admin/login/'})
