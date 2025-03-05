@@ -15,7 +15,7 @@ def professor_list(request):
     # Prepare JSON data for professors
     professor_list_data = []
     for professor in professors:
-        avg_rating = professor.AverageRatingCalcs()
+        avg_rating = professor.average_rating_prof()
         professor_list_data.append({
             'id': professor.id,
             'name': professor.name,
@@ -110,7 +110,7 @@ def view_ratings(request):
             'professor_id': professor.id,
             'professor_name': professor.name,
             'department': professor.department,
-            'average_rating': professor.AverageRatingCalcs(),  # This returns 0.0 if no ratings exist
+            'average_rating': professor.average_rating_prof(),  # This returns 0.0 if no ratings exist
         })
     return JsonResponse({'ratings': ratings_data})
 
