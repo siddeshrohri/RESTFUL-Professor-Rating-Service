@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+# from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "accounts",
     'professor_rating',
+    # 'django_auto_logout',
 ]
 
 MIDDLEWARE = [
@@ -49,9 +51,17 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    'professor_rating_service.middleware.LoginRequiredMiddleware',
+    # 'professor_rating_service.middleware.LoginRequiredMiddleware',
+    # 'django_auto_logout.middleware.auto_logout',
 
 ]
+
+# AUTO_LOGOUT = {
+#     'IDLE_TIME': timedelta(minutes=10),  # Log out after 10 minutes of inactivity.
+#     'SESSION_TIME': timedelta(hours=1),    # Or force log out after 1 hour.
+#     'REDIRECT_TO_LOGIN_IMMEDIATELY': True,   # Redirect to login immediately after timeout.
+#     'MESSAGE': 'The session has expired. Please login again to continue.',
+# }
 
 ROOT_URLCONF = "professor_rating_service.urls"
 
@@ -119,4 +129,6 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-LOGIN_URL = '/admin/login/'  
+# LOGIN_URL = '/admin/login/'  
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# LOGIN_ADMIN = '/admin/login/'
