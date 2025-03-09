@@ -90,9 +90,7 @@ The client application adheres to the provided specifications. The available com
 - **Client Library:** `requests` (install via `pip install requests`)
 
 ### Local Setup
-1. Clone the repository:  
-   `git clone <repository-url>`
-2. Install dependencies:  
+1. Install dependencies:  
    `pip install -r requirements.txt`
 3. Apply migrations:  
    `python manage.py migrate`
