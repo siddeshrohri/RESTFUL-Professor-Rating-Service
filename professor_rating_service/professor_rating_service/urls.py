@@ -16,14 +16,16 @@ Including another URLconf
 """
 # professors_rating_service/urls.py
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import path, include
-from professor_rating import views
-from accounts import views as account_views
+# from professor_rating import views
+# from accounts import views as account_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', lambda request: redirect('/admin/login/')),  
     path('accounts/', include('accounts.urls')),
     # path('', views.home, name='home'),  # Home page
     path('professor_rating/', include('professor_rating.urls')), 
-    path('', account_views.login_view, name='login'),
+
 ]
