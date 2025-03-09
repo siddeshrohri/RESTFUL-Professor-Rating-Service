@@ -1,7 +1,7 @@
 import requests
 
-DEFAULT_BASE_URL = 'http://127.0.0.1:8000/'
-BASE_URL = DEFAULT_BASE_URL  
+DEFAULT_BASE_URL = 'http://sc22sro.pythonanywhere.com/'
+BASE_URL = DEFAULT_BASE_URL
 session = requests.Session()
 
 logged_in = False
@@ -53,12 +53,22 @@ def login():
         url = DEFAULT_BASE_URL 
     
     BASE_URL = url if url.endswith('/') else url + '/'
-    username = input("Enter username: ")
-    password = input("Enter password: ")
+
+    username = input("Enter username: ").strip()
+    password = input("Enter password: ").strip()
     
+    if not username or not password:
+        print("Error: Both username and password are required.")
+        return
+
     data = {'username': username, 'password': password}
-    response = session.post(BASE_URL + 'accounts/login/', data=data)
-    
+
+    try:
+        response = session.post(BASE_URL + 'accounts/login/', data=data)
+    except requests.exceptions.RequestException as e:
+        print("Network error:", e)
+        return
+
     try:
         resp = response.json()
     except Exception as e:
@@ -71,6 +81,7 @@ def login():
     else:
         print(resp.get('message', 'Login successful'))
         logged_in = True
+
 
 def logout():
     global logged_in

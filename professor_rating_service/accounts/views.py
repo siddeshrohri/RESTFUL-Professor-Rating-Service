@@ -11,17 +11,23 @@ def login_api(request):
     username = request.POST.get('username')
     password = request.POST.get('password')
     
-    if not username or not password:
-        return JsonResponse({'error': 'Username and password are required for Login.'}, status=400)
+    if not username and not password:
+        return JsonResponse({'error': 'Both username and password are required for Login.'}, status=400)
+    elif not username:
+        return JsonResponse({'error': 'Username is required for Login.'}, status=400)
+    elif not password:
+        return JsonResponse({'error': 'Password is required for Login.'}, status=400)
     
     user = authenticate(request, username=username, password=password)
     
     if user is not None:
         if user.is_superuser:
             return JsonResponse({'error': 'Admin login only allowed via /admin/login/ on localhost'}, status=403)
-        else:
+        try:
             login(request, user)
-            return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})
+        except Exception as e:
+            return JsonResponse({'error': 'Error during login process.'}, status=500)
+        return JsonResponse({'message': 'Login successful', 'redirect': 'professor_list'})
     else:
         return JsonResponse({'error': 'Invalid username or password'}, status=401)
 
@@ -30,7 +36,11 @@ def logout_api(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'POST method required'}, status=405)
     
-    logout(request)
+    try:
+        logout(request)
+    except Exception as e:
+        return JsonResponse({'error': 'Error during logout process.'}, status=500)
+    
     return JsonResponse({'message': 'Logged out successfully'})
 
 @csrf_exempt
@@ -43,8 +53,21 @@ def register_api(request):
     password = request.POST.get('password')
     confirm_password = request.POST.get('confirm_password')
     
-    if not username or not email or not password or not confirm_password:
-        return JsonResponse({'error': 'All fields are required.'}, status=400)
+    missing_fields = []
+    if not username:
+        missing_fields.append("username")
+    if not email:
+        missing_fields.append("email")
+    if not password:
+        missing_fields.append("password")
+    if not confirm_password:
+        missing_fields.append("confirm_password")
+    
+    if missing_fields:
+        return JsonResponse(
+            {'error': f"The following fields are required: {', '.join(missing_fields)}."}, 
+            status=400
+        )
     
     if password != confirm_password:
         return JsonResponse({'error': 'Passwords do not match!'}, status=400)
@@ -63,6 +86,7 @@ def register_api(request):
         )
         user.save()
         login(request, user)
-        return JsonResponse({'message': 'Registration successful'})
     except Exception as e:
         return JsonResponse({'error': 'An error occurred during registration.'}, status=500)
+    
+    return JsonResponse({'message': 'Registration successful'})

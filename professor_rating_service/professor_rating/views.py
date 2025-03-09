@@ -5,150 +5,162 @@ from .models import Rating, Professor, Module
 import json
 from django.views.decorators.csrf import csrf_exempt
 
-
-
 @login_required
 def professor_list(request):
     """
-    This function returns a list of all the professors and the modules related to the professor
-    in JSON format which can later be accessed by the client side
+    Returns a list of all professors and their related modules in JSON format.
     """
-    professors = Professor.objects.all()
-    modules = Module.objects.all()
+    try:
+        professors = Professor.objects.all()
+        modules = Module.objects.all()
 
-    professor_list_data = []
-    for professor in professors:
-        avg_rating_profs = professor.average_rating_prof()
-        professor_list_data.append({
-            'id': professor.id,
-            'name': professor.name,
-            'department': professor.department,
-            'average_rating': avg_rating_profs,
-        })
-
-    modules_list_data = []
-    for module in modules:
-        professors = module.professors.all()
-        modules_list_data.append({
-            'module_code': module.module_code,
-            'name': module.name,
-            'department': module.department,
-            'year': module.year,
-            'semester': module.semester,
-            'average_rating': module.average_rating,
-            'professors': [{'id': prof.id, 'name': prof.name} for prof in professors]
-        })
-
-    return JsonResponse({'professors': professor_list_data, 'modules': modules_list_data})
-
-
-@csrf_exempt
-@login_required
-def rate_professor(request, professor_id, module_code):
-    professor = get_object_or_404(Professor, id=professor_id)
-    module = get_object_or_404(Module, module_code=module_code)
-
-    if professor not in module.professors.all():
-        return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
-
-    rating, created = Rating.objects.get_or_create(
-        professor=professor,
-        user=request.user,
-        module=module,
-        defaults={'score': 0}
-    )
-
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            new_score = data.get('score')
-
-            if new_score is None:
-                return JsonResponse({'error': 'Rating score not provided'}, status=400)
-
-            new_score = int(new_score)
-            if new_score < 1 or new_score > 5:
-                return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
-
-            rating.score = new_score
-            rating.save()
-
-            return JsonResponse({
-                'message': 'Rating updated successfully',
-                'professor_id': professor.id,
-                'module_code': module.module_code,
-                'score': rating.score
+        professor_list_data = []
+        for professor in professors:
+            avg_rating_profs = professor.average_rating_prof()
+            professor_list_data.append({
+                'id': professor.id,
+                'name': professor.name,
+                'department': professor.department,
+                'average_rating': avg_rating_profs,
             })
 
-        except (json.JSONDecodeError, ValueError):
-            return JsonResponse({'error': 'Invalid rating format'}, status=400)
+        modules_list_data = []
+        for module in modules:
+            profs = module.professors.all()
+            modules_list_data.append({
+                'module_code': module.module_code,
+                'name': module.name,
+                'department': module.department,
+                'year': module.year,
+                'semester': module.semester,
+                'average_rating': module.average_rating,
+                'professors': [{'id': prof.id, 'name': prof.name} for prof in profs]
+            })
 
-    return JsonResponse({
-        'professor': {
-            'id': professor.id,
-            'name': professor.name,
-            'department': professor.department
-        },
-        'module': {
-            'module_code': module.module_code,
-            'name': module.name,
-            'department': module.department,
-            'year': module.year,
-            'semester': module.semester
-        },
-        'rating': rating.score
-    })
+        return JsonResponse({'professors': professor_list_data, 'modules': modules_list_data})
+    except Exception as e:
+        return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
+
+
+# @csrf_exempt
+# @login_required
+# def rate_professor(request, professor_id, module_code):
+#     try:
+#         professor = get_object_or_404(Professor, id=professor_id)
+#         module = get_object_or_404(Module, module_code=module_code)
+#     except Exception as e:
+#         return JsonResponse({'error': f'Error retrieving objects: {str(e)}'}, status=500)
+    
+#     if professor not in module.professors.all():
+#         return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
+
+#     try:
+#         rating, created = Rating.objects.get_or_create(
+#             professor=professor,
+#             user=request.user,
+#             module=module,
+#             defaults={'score': 0}
+#         )
+#     except Exception as e:
+#         return JsonResponse({'error': f'Error retrieving/creating rating: {str(e)}'}, status=500)
+
+#     if request.method == "POST":
+#         try:
+#             data = json.loads(request.body)
+#             new_score = data.get('score')
+#             if new_score is None:
+#                 return JsonResponse({'error': 'Rating score not provided'}, status=400)
+#             new_score = int(new_score)
+#             if new_score < 1 or new_score > 5:
+#                 return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
+            
+#             rating.score = new_score
+#             rating.save()
+#             return JsonResponse({
+#                 'message': 'Rating updated successfully',
+#                 'professor_id': professor.id,
+#                 'module_code': module.module_code,
+#                 'score': rating.score
+#             })
+#         except (json.JSONDecodeError, ValueError) as e:
+#             return JsonResponse({'error': f'Invalid rating format: {str(e)}'}, status=400)
+#         except Exception as e:
+#             return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
+    
+#     try:
+#         return JsonResponse({
+#             'professor': {
+#                 'id': professor.id,
+#                 'name': professor.name,
+#                 'department': professor.department
+#             },
+#             'module': {
+#                 'module_code': module.module_code,
+#                 'name': module.name,
+#                 'department': module.department,
+#                 'year': module.year,
+#                 'semester': module.semester
+#             },
+#             'rating': rating.score
+#         })
+#     except Exception as e:
+#         return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
 
 
 @login_required
 def view_ratings(request):
     """
-    This returns the rating for all the professors
+    Returns the overall average ratings for all professors.
     """
-    professors = Professor.objects.all()
-    ratings_data = []
-    for professor in professors:
-        ratings_data.append({
-            'professor_id': professor.id,
-            'professor_name': professor.name,
-            'department': professor.department,
-            'average_rating': professor.average_rating_prof(),
-        })
-    return JsonResponse({'ratings': ratings_data})
-
-
+    try:
+        professors = Professor.objects.all()
+        ratings_data = []
+        for professor in professors:
+            ratings_data.append({
+                'professor_id': professor.id,
+                'professor_name': professor.name,
+                'department': professor.department,
+                'average_rating': professor.average_rating_prof(),
+            })
+        return JsonResponse({'ratings': ratings_data})
+    except Exception as e:
+        return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
 
 
 @login_required
 def average_rating(request, professor_id, module_code):
     """
-    This returns the average rating of a module taught by the professor
+    Returns the average rating for a module taught by a specific professor.
     """
-    professor = get_object_or_404(Professor, id=professor_id)
-    module = get_object_or_404(Module, module_code=module_code)
+    try:
+        professor = get_object_or_404(Professor, id=professor_id)
+        module = get_object_or_404(Module, module_code=module_code)
+    except Exception as e:
+        return JsonResponse({'error': f'Error retrieving objects: {str(e)}'}, status=500)
     
     if professor not in module.professors.all():
         return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
     
-    ratings = Rating.objects.filter(professor=professor, module=module)
-    if not ratings:
-        avg_rating = 0.0
-    else:
-        avg_rating = sum(rating.score for rating in ratings) / len(ratings)
-    
-    return JsonResponse({
-        'professor_id': professor.id,
-        'module_code': module.module_code,
-        'average_rating': avg_rating
-    })
-
+    try:
+        ratings = Rating.objects.filter(professor=professor, module=module)
+        if not ratings:
+            avg_rating = 0.0
+        else:
+            avg_rating = sum(rating.score for rating in ratings) / len(ratings)
+        return JsonResponse({
+            'professor_id': professor.id,
+            'module_code': module.module_code,
+            'average_rating': avg_rating
+        })
+    except Exception as e:
+        return JsonResponse({'error': f'Error calculating average: {str(e)}'}, status=500)
 
 
 @csrf_exempt
 @login_required
 def api_rate_professor(request):
     """
-    This function is used to rate the professor for a specific module
+    API endpoint to rate a professor for a specific module.
     """
     if request.method == 'POST':
         try:
@@ -156,41 +168,39 @@ def api_rate_professor(request):
             professor_id = data.get('professor_id')
             module_code = data.get('module_code')
             rating_value = data.get('rating')
-
+            
             if not all([professor_id, module_code, rating_value]):
                 return JsonResponse({'error': 'Missing required fields'}, status=400)
-
+            
             rating_value = int(rating_value)
             if rating_value < 1 or rating_value > 5:
                 return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
-
+            
             professor = get_object_or_404(Professor, id=professor_id)
             module = get_object_or_404(Module, module_code=module_code)
-
+            
             if professor not in module.professors.all():
                 return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
-
+            
             rating_obj, created = Rating.objects.get_or_create(
                 professor=professor,
                 user=request.user,
                 module=module,
                 defaults={'score': rating_value}
             )
-
             if not created:
                 rating_obj.score = rating_value
                 rating_obj.save()
-
+            
             return JsonResponse({
                 'message': 'Rating submitted successfully',
                 'professor_id': professor.id,
                 'module_code': module.module_code,
                 'score': rating_obj.score
             }, status=200)
-
-        except (json.JSONDecodeError, ValueError):
-            return JsonResponse({'error': 'Invalid input format'}, status=400)
+        except (json.JSONDecodeError, ValueError) as e:
+            return JsonResponse({'error': f'Invalid input format: {str(e)}'}, status=400)
         except Exception as e:
             return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
-
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
