@@ -8,23 +8,17 @@ class Professor(models.Model):
     department = models.CharField(max_length=255)
 
     def average_rating_prof(self):
-        """
-        This function calculates the overall rating per professor by averaging the related modules
-        of the professor by rounding to the nearest inter within the range of 1 to 5
-        """
-        module_ratings = (
-            self.modules
-            .annotate(avg_module_rating=Avg('ratings__score'))
-            .values_list('avg_module_rating', flat=True)
-        )
-        valid_ratings = [rating for rating in module_ratings if rating is not None]
-        if valid_ratings:
-            return round(sum(valid_ratings) / len(valid_ratings))
+        ratings = self.ratings.all()
+        if ratings.exists():
+            total_score = sum(r.score for r in ratings)
+            count = ratings.count()
+            avg = total_score / count
+            return round(avg)
         return 0
+
 
     def __str__(self):
         return f"{self.name} - Avg Rating: {self.average_rating_prof()}"
-
 
 class Module(models.Model):
     module_code = models.CharField(max_length=20, unique=True)
@@ -36,17 +30,12 @@ class Module(models.Model):
     average_rating = models.FloatField(default=0.0)
 
     def update_average_rating_module(self):
-        """
-        This function calculates the overall rating of the module, rounding it to the
-        nearest integer within the range of 1 to 5
-        """
         avg_rating_module = self.ratings.aggregate(avg=Avg('score'))['avg'] or 0.0
         self.average_rating = round(avg_rating_module)
         self.save()
 
     def __str__(self):
         return f"{self.name} ({self.year} - {self.semester}) - Avg Rating: {round(self.average_rating)}"
-
 
 class Rating(models.Model):
     professor = models.ForeignKey(Professor, on_delete=models.CASCADE, related_name='ratings')
@@ -58,9 +47,6 @@ class Rating(models.Model):
         unique_together = ('professor', 'user', 'module')
 
     def save(self, *args, **kwargs):
-        """ Saves the rating first of the module and then calculates the average rating of the 
-        module
-        """
         super().save(*args, **kwargs)
         self.module.update_average_rating_module()
 
