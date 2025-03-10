@@ -50,7 +50,7 @@ def professor_list(request):
 #         module = get_object_or_404(Module, module_code=module_code)
 #     except Exception as e:
 #         return JsonResponse({'error': f'Error retrieving objects: {str(e)}'}, status=500)
-    
+
 #     if professor not in module.professors.all():
 #         return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
 
@@ -73,7 +73,7 @@ def professor_list(request):
 #             new_score = int(new_score)
 #             if new_score < 1 or new_score > 5:
 #                 return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
-            
+
 #             rating.score = new_score
 #             rating.save()
 #             return JsonResponse({
@@ -86,7 +86,7 @@ def professor_list(request):
 #             return JsonResponse({'error': f'Invalid rating format: {str(e)}'}, status=400)
 #         except Exception as e:
 #             return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
-    
+
 #     try:
 #         return JsonResponse({
 #             'professor': {
@@ -137,10 +137,10 @@ def average_rating(request, professor_id, module_code):
         module = get_object_or_404(Module, module_code=module_code)
     except Exception as e:
         return JsonResponse({'error': f'Error retrieving objects: {str(e)}'}, status=500)
-    
+
     if professor not in module.professors.all():
         return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
-    
+
     try:
         ratings = Rating.objects.filter(professor=professor, module=module)
         if not ratings:
@@ -160,28 +160,66 @@ def average_rating(request, professor_id, module_code):
 @login_required
 def api_rate_professor(request):
     """
-    API endpoint to rate a professor for a specific module.
+    API endpoint to rate a professor for a specific module instance.
     """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             professor_id = data.get('professor_id')
             module_code = data.get('module_code')
+            year = data.get('year')
+            semester = data.get('semester')
             rating_value = data.get('rating')
-            
-            if not all([professor_id, module_code, rating_value]):
+
+            if not all([professor_id, module_code, year, semester, rating_value]):
                 return JsonResponse({'error': 'Missing required fields'}, status=400)
-            
-            rating_value = int(rating_value)
+
+            try:
+                rating_value = int(rating_value)
+            except ValueError:
+                return JsonResponse({'error': 'Rating must be an integer'}, status=400)
             if rating_value < 1 or rating_value > 5:
                 return JsonResponse({'error': 'Rating must be between 1 and 5'}, status=400)
-            
+
+            try:
+                year = int(year)
+            except ValueError:
+                return JsonResponse({'error': 'Year must be an integer'}, status=400)
+
+            try:
+                semester = int(semester)
+            except ValueError:
+                return JsonResponse({'error': 'Semester must be an integer'}, status=400)
+            if semester not in [1, 2]:
+                return JsonResponse({'error': 'Semester must be either 1 or 2'}, status=400)
+
             professor = get_object_or_404(Professor, id=professor_id)
-            module = get_object_or_404(Module, module_code=module_code)
-            
+
+            module_qs = Module.objects.filter(module_code=module_code)
+            if not module_qs.exists():
+                return JsonResponse({
+                    'error': f'No module found with module code {module_code}'
+                }, status=400)
+
+            module_year_qs = module_qs.filter(year=year)
+            if not module_year_qs.exists():
+                return JsonResponse({
+                    'error': f'No module instance found for module code {module_code} in year {year}'
+                }, status=400)
+
+            module_instance_qs = module_year_qs.filter(semester=semester)
+            if not module_instance_qs.exists():
+                return JsonResponse({
+                    'error': f'No module instance found for module code {module_code} in year {year} for semester {semester}'
+                }, status=400)
+
+            module = module_instance_qs.first()
+
             if professor not in module.professors.all():
-                return JsonResponse({'error': 'Professor does not teach this module'}, status=400)
-            
+                return JsonResponse({
+                    'error': 'Professor does not teach this module instance for the specified year and semester'
+                }, status=400)
+
             rating_obj, created = Rating.objects.get_or_create(
                 professor=professor,
                 user=request.user,
@@ -191,11 +229,13 @@ def api_rate_professor(request):
             if not created:
                 rating_obj.score = rating_value
                 rating_obj.save()
-            
+
             return JsonResponse({
                 'message': 'Rating submitted successfully',
                 'professor_id': professor.id,
                 'module_code': module.module_code,
+                'year': module.year,
+                'semester': module.semester,
                 'score': rating_obj.score
             }, status=200)
         except (json.JSONDecodeError, ValueError) as e:
